@@ -2,12 +2,12 @@ package com.serg.bash.betsparser.dto.response;
 
 public class OutcomeDto {
     private String outcomeName;
-    private double coefficient;
+    private Double coefficient;
     private String outcomeId;
 
     public OutcomeDto() {}
 
-    public OutcomeDto(String outcomeName, double coefficient, String outcomeId) {
+    public OutcomeDto(String outcomeName, Double coefficient, String outcomeId) {
         this.outcomeName = outcomeName;
         this.coefficient = coefficient;
         this.outcomeId = outcomeId;
@@ -21,11 +21,11 @@ public class OutcomeDto {
         this.outcomeName = outcomeName;
     }
 
-    public double getCoefficient() {
+    public Double getCoefficient() {
         return coefficient;
     }
 
-    public void setCoefficient(double coefficient) {
+    public void setCoefficient(Double coefficient) {
         this.coefficient = coefficient;
     }
 

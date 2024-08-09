@@ -77,23 +77,26 @@ public class MatchDto {
     public String toString() {
         String header = String.format("%s, %s", sport, league);
 
-        String matchInfo = String.format("%s - %s, %s",
+        String matchInfo = String.format("%s, %s, %s",
                 matchName,
-                matchStartTimeUtc != null ? matchStartTimeUtc.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z")) : "N/A",
+                matchStartTimeUtc != null ? matchStartTimeUtc.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss 'UTC'")) : "N/A",
                 matchId
         );
 
-        String marketDetails = (markets != null ? markets.stream()
+        String marketDetails = markets != null ? markets.stream()
                 .map(market -> {
                     String marketName = market.getMarketName();
                     String oddsInfo = market.getOutcomes() != null ? market.getOutcomes().stream()
-                            .map(outcome -> String.format("%s, %.1f, %s", outcome.getOutcomeName(), outcome.getCoefficient(), outcome.getOutcomeId()))
-                            .collect(Collectors.joining("\n")) : "No outcomes available";
-                    return String.format("%s\n%s", marketName, oddsInfo);
+                            .map(outcome -> String.format("                      %s, %.2f, %s",
+                                    outcome.getOutcomeName(),
+                                    outcome.getCoefficient(),
+                                    outcome.getOutcomeId() != null ? outcome.getOutcomeId() : "")
+                            )
+                            .collect(Collectors.joining("\n")) : "                                No outcomes available";
+                    return String.format("           %s\n%s", marketName, oddsInfo);
                 })
-                .collect(Collectors.joining("\n")) : "No markets available");
+                .collect(Collectors.joining("\n")) : "           No markets available";
 
         return String.format("%s\n%s\n%s", header, matchInfo, marketDetails);
     }
-
 }

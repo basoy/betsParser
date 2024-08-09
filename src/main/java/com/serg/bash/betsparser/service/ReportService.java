@@ -17,6 +17,6 @@ public class ReportService implements InitializingBean {
 
     @Override
     public void afterPropertiesSet() {
-        System.out.println(parserService.parse().blockFirst());
+        parserService.parse().blockFirst();
     }
 }

@@ -2,6 +2,7 @@ package com.serg.bash.betsparser.service;
 
 import com.serg.bash.betsparser.dto.response.MarketDto;
 import com.serg.bash.betsparser.dto.response.MatchDto;
+import com.serg.bash.betsparser.dto.response.OutcomeDto;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jsoup.Jsoup;
@@ -13,7 +14,10 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Scheduler;
 
-import java.time.*;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -23,8 +27,6 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
-import static java.util.Collections.emptyList;
 
 @Service
 
@@ -47,9 +49,9 @@ public class ParserService {
     }
 
     public Flux<List<MatchDto>> parseStatisticsFromMatches(Flux<String> matchesOfLeagues) {
-        List<MatchDto> result = new ArrayList<>();
         return matchesOfLeagues
                 .flatMap(html -> {
+                    List<MatchDto> result = new ArrayList<>();
                     Document doc = Jsoup.parse(html);
                     Elements elements = doc.select("[class^=crumb__title]");
                     String elementsDay = doc.select("[class^=headline-info__day]").text();
@@ -58,10 +60,31 @@ public class ParserService {
                     String regex = "\\b\\d{16}\\b";
                     Pattern pattern = Pattern.compile(regex);
                     Matcher matcher = pattern.matcher(html);
-                    Element parentContainer = doc.select("div:has(> section)").first();
 
                     if (matcher.find()) {
-                        id =  matcher.group();
+                        id = matcher.group();
+                    }
+
+                    Elements marketContainers = doc.select("div[class*='market-group']");
+
+                    List<MarketDto> markets = new ArrayList<>();
+                    for (int i = 0; i < marketContainers.select("div[class*='market-group-title']").size(); i++) {
+                        Elements outcomeElements = marketContainers.get(i).select("button");
+                        String marketName = marketContainers.select("div[class*='market-group-title']").get(i).text();
+                        List<OutcomeDto> outcomes = new ArrayList<>();
+                        for (Element outcomeElement : outcomeElements) {
+                            String left = outcomeElement.select("span[class*='sportline-group-market-runner__coefficient--left']").text();
+                            String right = outcomeElement.select("span[class*='sportline-group-market-runner__coefficient--right']").text();
+
+                            if (!left.isEmpty() && !right.isEmpty()) {
+                                outcomes.add(new OutcomeDto(left, parseDouble(right), null));//fixme didn't find id like 1970325384409972
+                            }
+                        }
+                        if (!outcomes.isEmpty()) {
+                            MarketDto marketDto = new MarketDto(marketName, outcomes);
+                            markets.add(marketDto);
+                        }
+
                     }
 
                     MatchDto matchDto = new MatchDto(
@@ -70,13 +93,16 @@ public class ParserService {
                             elements.get(3).text(),
                             parseDateTime(elementsDay, elementsTime),
                             id,
-                            List.of(new MarketDto(null, emptyList()))
+                            markets
                     );
+
                     result.add(matchDto);
                     System.out.println(result);
 
                     return Flux.just(result);
-                });
+                })
+                .collectList()
+                .flatMapMany(Flux::fromIterable);
     }
 
     public Flux<String> retrieveStatisticsFromMatches(Flux<String> matchesOfLeagues) {
@@ -169,7 +195,6 @@ public class ParserService {
 
         LocalDate localDate;
         try {
-            // Добавляем текущий год к строке даты
             String dateStrWithYear = dateStr + " " + LocalDate.now().getYear();
             localDate = LocalDate.parse(dateStrWithYear, dateFormatter);
         } catch (DateTimeParseException e) {
@@ -185,9 +210,19 @@ public class ParserService {
             return null;
         }
 
-        // Создаем ZonedDateTime в UTC
-        ZonedDateTime zonedDateTime = ZonedDateTime.of(localDate, localTime, ZoneId.of("UTC"));
-        return zonedDateTime;
+        return ZonedDateTime.of(localDate, localTime, ZoneId.of("UTC"));
+    }
+
+    public static Double parseDouble(String s) {
+        if (s == null) {
+            return null;
+        }
+        Double result = null;
+        try {
+            result = Double.valueOf(s);
+        } catch (NumberFormatException ignored) {
+        }
+        return result;
     }
 }
 
